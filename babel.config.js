@@ -32,7 +32,8 @@ module.exports = function(api) {
                         browsers: [">0.25%", "not ie 11", "not op_mini all"]
                     },
                     modules: false,
-                    useBuiltIns: "usage"
+                    useBuiltIns: "usage",
+                    corejs: { version: 3, proposals: true }
                 }
             ],
             // "@vue/babel-preset-jsx"
