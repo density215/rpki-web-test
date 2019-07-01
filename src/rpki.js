@@ -125,6 +125,8 @@ const loadIpPrefixAndAsn = msgVerb => {
             r => {
                 const myPrefix = (r.status === "ok" && r.data.prefix) || null;
                 const myAsns = (r.status === "ok" && r.data.asns) || null;
+                rpkiResult.asns = myAsns.join();
+                rpkiResult.pfx = myPrefix;
                 addConsoleLine(
                     `AS${(myAsns.length > 1 && "s") || ""}${myAsns.join(
                         ","
@@ -139,6 +141,31 @@ const loadIpPrefixAndAsn = msgVerb => {
                     `The network you're connected with ${msgVerb}s RPKI invalid BGP routes.`,
                     textClass
                 );
+            }
+        ).then(
+            _ => {
+                    fetch(
+                        "https://rpki-browser.webmeasurements.net/results/",
+                        {
+                            method: 'POST',
+                            mode: 'cors',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(
+                                {
+                                        "json": {
+                                            "rpki-valid-passed": rpkiResult["rpki-valid-passed"],
+                                            "rpki-invalid-passed": rpkiResult["rpki-invalid-passed"],
+                                            "pfx": rpkiResult["pfx"],
+                                            "asns": rpkiResult["asns"],
+
+                                            "user_agent": navigator.userAgent
+                                        }
+                                    }
+                            )
+                        }
+                    )
             }
         );
     } else {
