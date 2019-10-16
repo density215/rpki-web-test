@@ -187,9 +187,9 @@ const loadIpPrefixAndAsn = msgVerb => {
 export const testRpkiInvalids = () => {
     console.log("generating uuid...");
     const newUuid = v4();
-
-    const fetchValidUrl = `http://${newUuid}.rpki-valid-beacon.meerval.net/valid.json`;
-    const fetchInvalidUrl = `http://${newUuid}.rpki-invalid-beacon.meerval.net/invalid.json`;
+    
+    const fetchValidUrl = `${window.location.protocol}//${newUuid}.rpki-valid-beacon.meerval.net/valid.json`;
+    const fetchInvalidUrl = `${window.location.protocol}//${newUuid}.rpki-invalid-beacon.meerval.net/invalid.json`;
 
     addConsoleLine("testing valid ROA...");
     console.log(fetchValidUrl);
