@@ -1,5 +1,4 @@
 import { v4 } from "uuid";
-import { RSA_NO_PADDING } from "constants";
 
 let rpkiResult = {
     "rpki-valid-passed": null,
@@ -105,19 +104,7 @@ const loadIpPrefixAndAsn = msgVerb => {
     console.log(rpkiResult.ip);
     const textClass = (msgVerb === "drop" && "smile") || "frown";
     const myIp = (rpkiResult.ip && rpkiResult.ip) || null;
-    // loadResource("https://stat.ripe.net/data/whats-my-ip/data.json").then(
-    //     r => {
-    // const myIp =
-    //     (r.status === "ok" &&
-    //         r.data.ip &&
-    //         // check this is *NOT* an ipv6 address,
-    //         // that's not checked currently.
-    //         r.data.ip.replace(":") === r.data.ip) ||
-    //     null;
-    // console.log(`your ip: ${r.status === "ok" && r.data.ip}`);
-    // addConsoleLine(
-    //     `your public IP address : ${myIp}`
-    // );
+
     if (myIp) {
         loadResource(
             `https://stat.ripe.net/data/network-info/data.json?resource=${myIp}`
@@ -174,14 +161,7 @@ const loadIpPrefixAndAsn = msgVerb => {
             textClass
         );
     }
-    // },
-    // err => {
-    //     addConsoleLine(
-    //         `The network you're connected with ${msgVerb}s RPKI invalid BGP routes.`,
-    //         textClass
-    //     );
-    // }
-    // );
+
 };
 
 export const testRpkiInvalids = () => {
