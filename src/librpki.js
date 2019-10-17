@@ -1,15 +1,18 @@
 import { v4 } from "uuid";
-import fetch from "node-fetch";
 
 const RPKI_VALID_URL = "rpki-valid-beacon.meerval.net";
 const RPKI_INVALID_URL = "rpki-invalid-beacon.meerval.net";
 const POST_RESULTS_URL = "https://rpki-browser.webmeasurements.net/results/";
 const NETWORK_INFO_URL =
   "https://stat.ripe.net/data/network-info/data.json?resource=";
+const INVALID_TIMEOUT = 5000;
 
-const createRpkiTestUrl = ({ uuid, valid = false, protocol = "https" }) =>
-  `${protocol}://${uuid}.${(valid && RPKI_VALID_URL) ||
-    RPKI_INVALID_URL}/${(valid && "valid") || "invalid"}.json`;
+// node clients should pass in their own fetch function,
+// probably from the node-fetch npm module, but axios will
+// also work I guess (untested).
+// We're not importing that here, to keep bundle size down for
+// web clients.
+const fetch = (typeof window !== "undefined" && window.fetch) || null;
 
 // Enrich the standard js error
 // with a `detail` attribute.
@@ -17,8 +20,7 @@ const createRpkiTestUrl = ({ uuid, valid = false, protocol = "https" }) =>
 // So we don't have two write two separate handlers
 // upstream.
 function errHandler(err) {
-  console.log(err);
-  // console.log(this);
+  console.debug(err);
   err.detail = err.message;
   throw err;
 }
@@ -28,85 +30,137 @@ function errHandler(err) {
 // So the last case might be a resolve (so NOT dropping invalids)
 // or an error (which we return).
 const timeout = async (promise, dur) => {
-  Promise.pending = Promise.race.bind(Promise, []);
-  let cancel;
-
   return new Promise(function(resolve, reject) {
-    cancel = function() {
-      resolve(Promise.pending());
-    };
-
     setTimeout(function() {
-      resolve({ "rpki-invalid-passed": false });
-      console.log("invalid dropped [passed]");
-      cancel();
+      // note that this promise will resolve after time `dur`
+      // but if the resolve was already called by the promise.then
+      // down here (because the invalid endpoint returned a response)
+      // the resolve will be ignored.
+      resolve({
+        "rpki-invalid-passed": false,
+        stage: "invalidBlocked",
+        error: null
+      });
     }, dur);
-
     promise.then(resolve, reject);
   });
 };
 
-export const testRpkiInvalids = ({ enrich = false, postResult = false }) => {
-  console.log("generating uuid...");
+export const testRpkiInvalids = ({
+  enrich = false,
+  postResult = false,
+  invalidTimeout = INVALID_TIMEOUT,
+  fetch = fetch
+}) => {
+  if (!fetch) {
+    return Promise.reject(
+      "no fetch function available. Use node-fetch module or other and pass it as argument 'fetch'"
+    );
+  }
+
+  const createRpkiTestUrl = ({ uuid, valid = false, protocol = "https" }) => [
+    `${protocol}://${uuid}.${(valid && RPKI_VALID_URL) ||
+      RPKI_INVALID_URL}/${(valid && "valid") || "invalid"}.json`,
+    fetch
+  ];
+
+  console.debug("generating uuid...");
 
   const newUuid = v4();
   let rpkiResult = {
-    "rpki-valid-passed": null,
-    "rpki-invalid-passed": null,
-    error: null
+    "rpki-valid-passed": null, // true | false
+    "rpki-invalid-passed": null, // true | false
+    stage: "initialized", // initialized -> (validAwait | validReceived)
+    // -> (invalidAwait | invalidBlocked | invalidReceived) -> [enrichedReceived | enrichedAwait ]
+    // -> (postedSent | postedAwait )
+    // -> finished
+    error: null // string
   };
 
-  console.log("testing valid rpki prefix...");
-  console.log(createRpkiTestUrl({ uuid: newUuid, valid: true }));
-  console.log("testing invalid rpki prefix...");
-  console.log(createRpkiTestUrl({ uuid: newUuid, valid: false }));
+  console.debug(
+    `testing valid rpki prefix to ${
+      createRpkiTestUrl({
+        uuid: newUuid,
+        valid: true
+      })[0]
+    }...`
+  );
+  console.debug(
+    `testing invalid rpki prefix...${
+      createRpkiTestUrl({
+        uuid: newUuid,
+        valid: false
+      })[0]
+    }`
+  );
 
-  return loadRpkiUrl(createRpkiTestUrl({ uuid: newUuid, valid: true }))
+  return loadResource(...createRpkiTestUrl({ uuid: newUuid, valid: true }))
     .then(
       validR => {
-        rpkiResult = { ...rpkiResult, ...validR };
-        console.log("valid passed.");
-        console.log(validR);
+        rpkiResult = {
+          ...rpkiResult,
+          ...validR,
+          stage: "validReceived",
+          error: null
+        };
+        console.debug("valid passed.");
         return timeout(
-          loadRpkiUrl(createRpkiTestUrl({ uuid: newUuid, valid: false })),
-          5000
+          loadResource(...createRpkiTestUrl({ uuid: newUuid, valid: false })),
+          invalidTimeout
         );
       },
       err => {
-        console.log("valid bounced.");
-        console.log(err.status);
-        console.log(err.detail);
+        console.debug("valid bounced.");
+        console.debug(err);
+        console.debug(err.status);
+        console.debug(err.detail);
         // frown
-        rpkiResult = { ...rpkiResult, error: (err && err.detail) || err };
-        return rpkiResult;
+        // pass this on as a new promise to keep the chain intact.
+        return Promise.reject({
+          ...rpkiResult,
+          stage: "validAwait",
+          error: (err && err.detail) || err
+        });
       }
     )
     .then(
       invalidR => {
-        console.log("valid done.");
-        console.log(invalidR);
+        console.debug("invalid passed.");
         // could be frown, meh or smile
         rpkiResult = { ...rpkiResult, ...invalidR };
-        return rpkiResult;
+
+        if (enrich) {
+          return loadIpPrefixAndAsn({ rpkiResult, postResult });
+        }
+
+        return { ...rpkiResult, stage: "invalidReceived", error: null };
       },
       err => {
-        console.log("some rpki prefix errored out.");
-        console.log(err);
-        console.log(err.status);
-        console.log(err.detail);
+        console.debug("invalid returned error.");
+        console.debug(err);
+        console.debug(err.status);
+        console.debug(err.detail);
         // frown
-        return { ...rpkiResult, error: (err.detail && err.detail) || err };
+        return Promise.reject({
+          ...rpkiResult,
+          stage: "invalidAwait",
+          error: (err.detail && err.detail) || err
+        });
       }
+    )
+    .then(
+      rpkiResult => ({ ...rpkiResult, stage: "finished", error: null }),
+      finalErr => finalErr
     );
 };
 
-export const loadRpkiUrl = async (fetchUrl, fetchFn = fetch) => {
+export const loadResource = async (fetchUrl, fetchFn = fetch) => {
   let response = await fetchFn(fetchUrl, {
     // credentials: "include"
   }).catch(errHandler);
 
   let resultData = await response.json().catch(err => {
-    console.log(err);
+    console.debug(err);
     return Promise.reject({
       status: response.status,
       detail: "The response is not in JSON format"
@@ -118,11 +172,11 @@ export const loadRpkiUrl = async (fetchUrl, fetchFn = fetch) => {
   // So we need to check the ok field of the response
   // and reject the Promise accordingly.
   if (!response.ok) {
-    console.log("HTTP status code indicated error.");
-    console.log(response);
+    console.debug("HTTP status code indicated error.");
+    console.debug(response);
 
     const error = resultData.error;
-    console.log(error);
+    console.debug(error);
 
     // if the status and ok fields in the response object inidicate
     // an eror, we would expect a body that holds an 'error' object.
@@ -174,37 +228,52 @@ export const postRpkiResult = ({
         "rpki-invalid-passed": rpkiResult["rpki-invalid-passed"],
         pfx: rpkiResult["pfx"],
         asns: rpkiResult["asns"],
-        user_agent: (navigator && navigator.userAgent) || null
+        user_agent: (navigator && navigator.userAgent) || "rpki-web-test 0.0.1"
       }
     })
   });
 };
 
 export const loadIpPrefixAndAsn = ({ rpkiResult, postResult = false }) => {
-  console.log(rpkiResult.ip);
+  console.debug(rpkiResult.ip);
   const myIp = (rpkiResult.ip && rpkiResult.ip) || null;
 
   rpkiResult = { ...rpkiResult, asns: null, pfx: null };
 
   if (myIp) {
-    loadResource(`${NETWORK_INFO_URL}${myIp}`)
+    return loadResource(`${NETWORK_INFO_URL}${myIp}`, fetch)
       .then(
         r => {
+          console.debug("got some enrichment data");
           const myPrefix = (r.status === "ok" && r.data.prefix) || null;
           const myAsns = (r.status === "ok" && r.data.asns) || null;
-          rpkiResult.asns = myAsns.join();
-          rpkiResult.pfx = myPrefix;
+          return { ...rpkiResult, asns: myAsns.join(), pfx: myPrefix };
         },
         err => {
           console.error("could not retrieve ASN and/or prefix");
+          return Promise.reject({
+            ...rpkiResult,
+            stage: "enrichAwait",
+            error: err
+          });
         }
       )
-      .then(_ => {
-        if (postResult) {
-          postRpkiResult({ rpkiResult });
-        }
-      });
+      .then(
+        r => {
+          console.debug("postprocessing...");
+          if (postResult) {
+            postRpkiResult({ rpkiResult });
+          }
+          return { ...r, stage: "enrichReceived", error: null };
+        },
+        err => Promise.reject(err)
+      );
   } else {
     console.error("could not retrieve the IP address of the client");
+    return Promise.reject({
+      ...rpkiResult,
+      stage: "enrichAwait",
+      error: "cannot retrieve ip address"
+    });
   }
 };
