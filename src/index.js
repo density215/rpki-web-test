@@ -1,9 +1,21 @@
-import { testRpkiInvalids, handleReload } from "./rpki";
+import { testRpkiInvalids } from "./librpki";
+import { callBacks, handleReload } from "./smiley";
 
 const reloadButton = document.querySelector("#reload");
+
 reloadButton.addEventListener("click", e => {
-    handleReload();
+  handleReload();
+  startTest();
 });
 
-console.log("testing for invalid rpki rejects...");
-testRpkiInvalids();
+const startTest = () => {
+  testRpkiInvalids({
+    callBacks: callBacks,
+    enrich: true,
+    postResult: false
+  }).then(r => {
+    console.log(r);
+  });
+};
+
+startTest();
