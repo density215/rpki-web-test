@@ -106,8 +106,10 @@ export const testRpkiInvalids = opts => {
     error: null,
     success: true,
     data: {
-      validTestUrl: validTestUrl[0],
-      invalidTestUrl: invalidTestUrl[0],
+      testUrls: [
+        { url: validTestUrl[0], addressFamily: 4 },
+        { url: invalidTestUrl[0], addressFamily: 4 }
+      ],
       startDateTime: new Date(),
       originLocation: originLocation,
       userAgent: userAgent,
@@ -130,7 +132,12 @@ export const testRpkiInvalids = opts => {
             {
               stage,
               error: null,
-              data: { ...validR, duration: Date.now() - startTs },
+              data: {
+                ...validR,
+                duration: Date.now() - startTs,
+                testUrl: validTestUrl[0],
+                addressFamily: (validR.ip.match(/\:/) && 6) || 4
+              },
               success: true
             }
           ],
@@ -146,7 +153,7 @@ export const testRpkiInvalids = opts => {
           stage: stage,
           error: err,
           success: false,
-          data: { duration: Date.now() - startTs }
+          data: { duration: Date.now() - startTs, testUrl: validTestUrl[0] }
         });
         // frown
         // pass this on as a new promise to keep the chain intact.
@@ -169,7 +176,12 @@ export const testRpkiInvalids = opts => {
             ...rpkiResult.events,
             {
               stage,
-              data: { ...invalidR, duration: Date.now() - startTs },
+              data: {
+                ...invalidR,
+                duration: Date.now() - startTs,
+                testUrl: invalidTestUrl[0],
+                addressFamily: 4
+              },
               success: true,
               error: null
             }
@@ -212,7 +224,10 @@ export const testRpkiInvalids = opts => {
                   ...rpkiResult.events,
                   {
                     stage,
-                    data: { duration: Date.now() - startTs },
+                    data: {
+                      duration: Date.now() - startTs,
+                      enrichUrl: NETWORK_INFO_URL
+                    },
                     error: err,
                     success: false
                   }
@@ -363,7 +378,7 @@ export const loadIpPrefixAndAsn = myIp => {
     r => {
       const myPrefix = (r.status === "ok" && r.data.prefix) || null;
       const myAsns = (r.status === "ok" && r.data.asns) || null;
-      return { ip: myIp, asns: myAsns, prefix: myPrefix };
+      return { ip: myIp, asns: myAsns, prefix: myPrefix, enrichUrl: fetchUrl };
     },
     err => {
       console.error("could not retrieve ASN and/or prefix");
