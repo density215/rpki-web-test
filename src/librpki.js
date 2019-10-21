@@ -12,7 +12,12 @@ const INVALID_TIMEOUT = 5000;
 // also work I guess (untested).
 // We're not importing that here, to keep bundle size down for
 // web clients.
-const fetch = (typeof window !== "undefined" && window.fetch) || null;
+const fetchFn = (typeof window !== "undefined" && window.fetch) || null;
+const userAgent =
+  (typeof navigator !== "undefined" && navigator.userAgent) ||
+  __RELEASE_STRING__;
+const originLocation =
+  (typeof window !== "undefined" && window.location.origin) || null;
 
 // Enrich the standard js error
 // with a `detail` attribute.
@@ -36,22 +41,28 @@ const timeout = async (promise, dur) => {
       // but if the resolve was already called by the promise.then
       // down here (because the invalid endpoint returned a response)
       // the resolve will be ignored.
-      resolve({
+      const stage = "invalidBlocked";
+      // we don't have access to the module scoped rpkiResult here
+      const intermediaryRpkiResult = {
         "rpki-invalid-passed": false,
-        stage: "invalidBlocked",
+        stage: stage,
         error: null
-      });
+      };
+      resolve(intermediaryRpkiResult);
     }, dur);
     promise.then(resolve, reject);
   });
 };
 
-export const testRpkiInvalids = ({
-  enrich = false,
-  postResult = false,
-  invalidTimeout = INVALID_TIMEOUT,
-  fetch = fetch
-}) => {
+export const testRpkiInvalids = opts => {
+  const {
+    enrich = false,
+    postResult = false,
+    invalidTimeout = INVALID_TIMEOUT,
+    fetch = fetchFn,
+    callBacks = {}
+  } = opts;
+
   if (!fetch) {
     return Promise.reject(
       "no fetch function available. Use node-fetch module or other and pass it as argument 'fetch'"
@@ -64,100 +75,207 @@ export const testRpkiInvalids = ({
     fetch
   ];
 
-  console.debug("generating uuid...");
-
   const newUuid = v4();
+
+  // inital state of the result object
   let rpkiResult = {
     "rpki-valid-passed": null, // true | false
     "rpki-invalid-passed": null, // true | false
-    stage: "initialized", // initialized -> (validAwait | validReceived)
+    events: [],
+    stage: stage, // initialized -> (validAwait | validReceived)
     // -> (invalidAwait | invalidBlocked | invalidReceived) -> [enrichedReceived | enrichedAwait ]
     // -> (postedSent | postedAwait )
     // -> finished
     error: null // string
   };
 
-  console.debug(
-    `testing valid rpki prefix to ${
-      createRpkiTestUrl({
-        uuid: newUuid,
-        valid: true
-      })[0]
-    }...`
-  );
-  console.debug(
-    `testing invalid rpki prefix...${
-      createRpkiTestUrl({
-        uuid: newUuid,
-        valid: false
-      })[0]
-    }`
-  );
+  const stage = "initialized";
+  const validTestUrl = createRpkiTestUrl({
+    uuid: newUuid,
+    valid: true
+  });
+  const invalidTestUrl = createRpkiTestUrl({
+    uuid: newUuid,
+    valid: false
+  });
 
-  return loadResource(...createRpkiTestUrl({ uuid: newUuid, valid: true }))
+  const startTs = Date.now();
+
+  rpkiResult.events.push({
+    stage: stage,
+    error: null,
+    success: true,
+    data: {
+      validTestUrl: validTestUrl[0],
+      invalidTestUrl: invalidTestUrl[0],
+      startDateTime: new Date(),
+      originLocation: originLocation,
+      userAgent: userAgent,
+      options: { enrich, invalidTimeout, postResult }
+    }
+  });
+  callBacks[stage] && callBacks[stage](rpkiResult);
+
+  return loadResource(...validTestUrl)
     .then(
       validR => {
+        const stage = "validReceived";
         rpkiResult = {
           ...rpkiResult,
           ...validR,
-          stage: "validReceived",
-          error: null
+          stage: stage,
+          error: null,
+          events: [
+            ...rpkiResult.events,
+            {
+              stage,
+              error: null,
+              data: { ...validR, duration: Date.now() - startTs },
+              success: true
+            }
+          ],
+          ip: validR.ip
         };
-        console.debug("valid passed.");
-        return timeout(
-          loadResource(...createRpkiTestUrl({ uuid: newUuid, valid: false })),
-          invalidTimeout
-        );
+        callBacks[stage] && callBacks[stage](rpkiResult);
+
+        return timeout(loadResource(...invalidTestUrl), invalidTimeout);
       },
       err => {
-        console.debug("valid bounced.");
-        console.debug(err);
-        console.debug(err.status);
-        console.debug(err.detail);
+        const stage = "validAwait";
+        rpkiResult.events.push({
+          stage: stage,
+          error: err,
+          success: false,
+          data: { duration: Date.now() - startTs }
+        });
         // frown
         // pass this on as a new promise to keep the chain intact.
+        callBacks[stage] && callBacks[stage](rpkiResult);
         return Promise.reject({
           ...rpkiResult,
-          stage: "validAwait",
+          stage: stage,
           error: (err && err.detail) || err
         });
       }
     )
     .then(
       invalidR => {
-        console.debug("invalid passed.");
         // could be frown, meh or smile
-        rpkiResult = { ...rpkiResult, ...invalidR };
+        let stage = (invalidR.stage && invalidR.stage) || "invalidReceived";
+        rpkiResult = {
+          ...rpkiResult,
+          ...invalidR,
+          events: [
+            ...rpkiResult.events,
+            {
+              stage,
+              data: { ...invalidR, duration: Date.now() - startTs },
+              success: true,
+              error: null
+            }
+          ]
+        };
+
+        callBacks[stage] && callBacks[stage](rpkiResult);
 
         if (enrich) {
-          return loadIpPrefixAndAsn({ rpkiResult, postResult });
-        }
+          return loadIpPrefixAndAsn(rpkiResult.ip).then(
+            r => {
+              let stage = "enrichedReceived";
+              rpkiResult = {
+                ...rpkiResult,
+                events: [
+                  ...rpkiResult.events,
+                  {
+                    stage,
+                    data: { ...r, duration: Date.now() - startTs },
+                    error: null,
+                    success: true
+                  }
+                ],
+                ip: r.ip,
+                asn: r.asns,
+                pfx: r.prefix,
+                stage,
+                error: null
+              };
+              callBacks[stage] && callBacks[stage](rpkiResult);
 
-        return { ...rpkiResult, stage: "invalidReceived", error: null };
+              return rpkiResult;
+            },
+            err => {
+              let stage = "enrichedAwait";
+              rpkiResult = {
+                ...rpkiResult,
+                error: (err.detail && err.detail) || err,
+                events: [
+                  ...rpkiResult.events,
+                  {
+                    stage,
+                    data: { duration: Date.now() - startTs },
+                    error: err,
+                    success: false
+                  }
+                ]
+              };
+              callBacks[stage] && callBacks[stage](rpkiResult);
+
+              return rpkiResult;
+            }
+          );
+        } else {
+          return rpkiResult;
+        }
       },
       err => {
-        console.debug("invalid returned error.");
-        console.debug(err);
-        console.debug(err.status);
-        console.debug(err.detail);
         // frown
+        const stage = "invalidAwait";
+        rpkiResult.events.push({
+          stage: stage,
+          error: null,
+          success: false,
+          data: null
+        });
+        callBacks[stage] && callBacks[stage](rpkiResult);
         return Promise.reject({
           ...rpkiResult,
-          stage: "invalidAwait",
+          stage: stage,
           error: (err.detail && err.detail) || err
         });
       }
     )
     .then(
-      rpkiResult => ({ ...rpkiResult, stage: "finished", error: null }),
-      finalErr => finalErr
+      rpkiResult => ({
+        ...rpkiResult,
+        stage: "finished",
+        error: null,
+        events: [
+          ...rpkiResult.events,
+          {
+            stage: "finished",
+            data: { duration: Date.now() - startTs },
+            error: null,
+            success: true
+          }
+        ]
+      }),
+      finalErr => {
+        return {
+          ...rpkiResult,
+          stage: "finished",
+          data: { duration: Date.now() - startTs },
+          error: finalErr,
+          events: [
+            ...rpkiResult.events,
+            { stage: "finished", error: finalErr, data: null, success: false }
+          ]
+        };
+      }
     );
 };
 
 export const loadResource = async (fetchUrl, fetchFn = fetch) => {
-  let response = await fetchFn(fetchUrl, {
-    // credentials: "include"
-  }).catch(errHandler);
+  let response = await fetchFn(fetchUrl).catch(errHandler);
 
   let resultData = await response.json().catch(err => {
     console.debug(err);
@@ -227,53 +345,30 @@ export const postRpkiResult = ({
         "rpki-valid-passed": rpkiResult["rpki-valid-passed"],
         "rpki-invalid-passed": rpkiResult["rpki-invalid-passed"],
         pfx: rpkiResult["pfx"],
-        asns: rpkiResult["asns"],
-        user_agent: (navigator && navigator.userAgent) || "rpki-web-test 0.0.1"
+        asns: rpkiResult["asns"]
       }
     })
   });
 };
 
-export const loadIpPrefixAndAsn = ({ rpkiResult, postResult = false }) => {
-  console.debug(rpkiResult.ip);
-  const myIp = (rpkiResult.ip && rpkiResult.ip) || null;
-
-  rpkiResult = { ...rpkiResult, asns: null, pfx: null };
-
-  if (myIp) {
-    return loadResource(`${NETWORK_INFO_URL}${myIp}`, fetch)
-      .then(
-        r => {
-          console.debug("got some enrichment data");
-          const myPrefix = (r.status === "ok" && r.data.prefix) || null;
-          const myAsns = (r.status === "ok" && r.data.asns) || null;
-          return { ...rpkiResult, asns: myAsns.join(), pfx: myPrefix };
-        },
-        err => {
-          console.error("could not retrieve ASN and/or prefix");
-          return Promise.reject({
-            ...rpkiResult,
-            stage: "enrichAwait",
-            error: err
-          });
-        }
-      )
-      .then(
-        r => {
-          console.debug("postprocessing...");
-          if (postResult) {
-            postRpkiResult({ rpkiResult });
-          }
-          return { ...r, stage: "enrichReceived", error: null };
-        },
-        err => Promise.reject(err)
-      );
-  } else {
-    console.error("could not retrieve the IP address of the client");
+export const loadIpPrefixAndAsn = myIp => {
+  const fetchUrl = `${NETWORK_INFO_URL}${myIp}`;
+  if (!myIp) {
     return Promise.reject({
-      ...rpkiResult,
-      stage: "enrichAwait",
-      error: "cannot retrieve ip address"
+      error: "no ip address supplied."
     });
   }
+
+  return loadResource(fetchUrl, fetch).then(
+    r => {
+      const myPrefix = (r.status === "ok" && r.data.prefix) || null;
+      const myAsns = (r.status === "ok" && r.data.asns) || null;
+      return { ip: myIp, asns: myAsns, prefix: myPrefix };
+    },
+    err => {
+      console.error("could not retrieve ASN and/or prefix");
+      err.detail = `could not retrieve ASN and/or prefix from ${fetchUrl}`;
+      return Promise.reject(err);
+    }
+  );
 };
