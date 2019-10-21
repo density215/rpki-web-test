@@ -38,6 +38,11 @@ module.exports = {
     extensions: ["*", ".js"],
     symlinks: false
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      __RELEASE_STRING__: JSON.stringify(`rpki-web-test-${require("./package.json").version}`)
+    })
+  ],
   output: {
     path: dir_build,
     filename: "librpki.js",
