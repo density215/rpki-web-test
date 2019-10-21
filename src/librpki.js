@@ -191,7 +191,7 @@ export const testRpkiInvalids = opts => {
         callBacks[stage] && callBacks[stage](rpkiResult);
 
         if (enrich) {
-          return loadIpPrefixAndAsn(rpkiResult.ip).then(
+          return loadIpPrefixAndAsn(rpkiResult.ip, fetch).then(
             r => {
               let stage = "enrichedReceived";
               rpkiResult = {
@@ -260,7 +260,7 @@ export const testRpkiInvalids = opts => {
     )
     .then(
       rpkiResult =>
-        (postResult && postRpkiResult({ rpkiResult, startTs })) || rpkiResult
+        (postResult && postRpkiResult({ rpkiResult, startTs, fetch })) || rpkiResult
     )
     .then(
       rpkiResult => ({
@@ -351,9 +351,9 @@ export const postRpkiResult = ({
   rpkiResult,
   startTs = new Date.now(),
   postResultsUrl = POST_RESULTS_URL,
-  fetchFn = fetch
+  fetch = fetchFn
 }) =>
-  fetchFn(`${postResultsUrl}`, {
+  fetch(`${postResultsUrl}`, {
     method: "POST",
     mode: "cors",
     headers: {
@@ -401,7 +401,7 @@ export const postRpkiResult = ({
     }
   );
 
-export const loadIpPrefixAndAsn = myIp => {
+export const loadIpPrefixAndAsn = (myIp, fetch = fetchFn) => {
   const fetchUrl = `${NETWORK_INFO_URL}${myIp}`;
   if (!myIp) {
     return Promise.reject({
