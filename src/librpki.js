@@ -2,7 +2,8 @@ import { v4 } from "uuid";
 
 const RPKI_VALID_URL = "rpki-valid-beacon.meerval.net";
 const RPKI_INVALID_URL = "rpki-invalid-beacon.meerval.net";
-const POST_RESULTS_URL = "https://rpki-browser.webmeasurements.net/results/";
+const POST_RESULTS_URL =
+  "https://rpki-browser.webmeasurements.net/results/";
 const NETWORK_INFO_URL =
   "https://stat.ripe.net/data/network-info/data.json?resource=";
 const INVALID_TIMEOUT = 5000;
@@ -136,7 +137,7 @@ export const testRpkiInvalids = opts => {
                 ...validR,
                 duration: Date.now() - startTs,
                 testUrl: validTestUrl[0],
-                addressFamily: (validR.ip.match(/\:/) && 6) || 4
+                addressFamily: 4
               },
               success: true
             }
@@ -225,8 +226,7 @@ export const testRpkiInvalids = opts => {
                   {
                     stage,
                     data: {
-                      duration: Date.now() - startTs,
-                      enrichUrl: NETWORK_INFO_URL
+                      duration: Date.now() - startTs
                     },
                     error: err,
                     success: false
@@ -259,6 +259,7 @@ export const testRpkiInvalids = opts => {
         });
       }
     )
+    .then(rpkiResult => postRpkiResult({ rpkiResult, startTs }))
     .then(
       rpkiResult => ({
         ...rpkiResult,
@@ -346,24 +347,58 @@ export const loadResource = async (fetchUrl, fetchFn = fetch) => {
 
 export const postRpkiResult = ({
   rpkiResult,
+  startTs = new Date.now(),
   postResultsUrl = POST_RESULTS_URL,
   fetchFn = fetch
 }) => {
-  fetchFn(`${postResultsUrl}`, {
+  console.log(rpkiResult);
+  return fetchFn(`${postResultsUrl}`, {
     method: "POST",
     mode: "cors",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      json: {
-        "rpki-valid-passed": rpkiResult["rpki-valid-passed"],
-        "rpki-invalid-passed": rpkiResult["rpki-invalid-passed"],
-        pfx: rpkiResult["pfx"],
-        asns: rpkiResult["asns"]
-      }
+      json: rpkiResult
     })
-  });
+    // keep the promise chain alive, we have to
+    // return the rpkiResult to be worken on
+    // by the next Promise.
+  }).then(
+    r => ({
+      ...rpkiResult,
+      events: [
+        ...rpkiResult.events,
+        {
+          stage: "resultPostedConfirmed",
+          error: null,
+          successs: true,
+          data: {
+            postUrl: postResultsUrl,
+            payload: rpkiResult,
+            duration: Date.now() - startTs
+          }
+        }
+      ]
+    }),
+    err => {
+      err.detail = "could not post the results";
+      err.payload = rpkiResult;
+      err.url = postResultsUrl;
+      return {
+        ...rpkiResult,
+        events: [
+          ...rpkiResult.events,
+          {
+            stage: "resultPostedAwait",
+            data: null,
+            error: err,
+            success: false
+          }
+        ]
+      };
+    }
+  );
 };
 
 export const loadIpPrefixAndAsn = myIp => {
@@ -382,7 +417,8 @@ export const loadIpPrefixAndAsn = myIp => {
     },
     err => {
       console.error("could not retrieve ASN and/or prefix");
-      err.detail = `could not retrieve ASN and/or prefix from ${fetchUrl}`;
+      err.detail = `could not retrieve ASN and/or prefix`;
+      err.url = fetchUrl;
       return Promise.reject(err);
     }
   );
