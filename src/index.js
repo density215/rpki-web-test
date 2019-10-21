@@ -12,7 +12,7 @@ const startTest = () => {
   testRpkiInvalids({
     callBacks: callBacks,
     enrich: true,
-    postResult: false
+    postResult: true
   }).then(r => {
     console.log(r);
   });

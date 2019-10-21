@@ -2,8 +2,7 @@ import { v4 } from "uuid";
 
 const RPKI_VALID_URL = "rpki-valid-beacon.meerval.net";
 const RPKI_INVALID_URL = "rpki-invalid-beacon.meerval.net";
-const POST_RESULTS_URL =
-  "https://rpki-browser.webmeasurements.net/results/";
+const POST_RESULTS_URL = "https://rpki-browser.webmeasurements.net/results/";
 const NETWORK_INFO_URL =
   "https://stat.ripe.net/data/network-info/data.json?resource=";
 const INVALID_TIMEOUT = 5000;
@@ -259,7 +258,10 @@ export const testRpkiInvalids = opts => {
         });
       }
     )
-    .then(rpkiResult => postRpkiResult({ rpkiResult, startTs }))
+    .then(
+      rpkiResult =>
+        (postResult && postRpkiResult({ rpkiResult, startTs })) || rpkiResult
+    )
     .then(
       rpkiResult => ({
         ...rpkiResult,
@@ -350,9 +352,8 @@ export const postRpkiResult = ({
   startTs = new Date.now(),
   postResultsUrl = POST_RESULTS_URL,
   fetchFn = fetch
-}) => {
-  console.log(rpkiResult);
-  return fetchFn(`${postResultsUrl}`, {
+}) =>
+  fetchFn(`${postResultsUrl}`, {
     method: "POST",
     mode: "cors",
     headers: {
@@ -399,7 +400,6 @@ export const postRpkiResult = ({
       };
     }
   );
-};
 
 export const loadIpPrefixAndAsn = myIp => {
   const fetchUrl = `${NETWORK_INFO_URL}${myIp}`;
