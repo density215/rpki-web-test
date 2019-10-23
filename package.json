@@ -1,13 +1,20 @@
 {
   "name": "rpki-web-test",
   "version": "0.0.1",
-  "description": "",
+  "description": "Lib, website and cli tool to test if your internet connection drops RPKI invalid ROAs somewhere along the way.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/density215/rpki-web-test.git"
+  },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "./node_modules/.bin/webpack-dev-server"
+    "test": "node test/all.js",
+    "start": "./node_modules/.bin/webpack-dev-server",
+    "cli": "webpack --config ./webpack.cli.js && pkg build/rpki-test-cli.js -o build/rpki-web-test-$TARGET -t $TARGET",
+    "web": "webpack --config ./webpack.smiley.js",
+    "lib": "webpack --config ./webpack.lib.js"
   },
-  "author": "",
+  "author": "Jasper den Hertog",
   "license": "ISC",
   "dependencies": {
     "@babel/core": "^7.4.5",
@@ -27,5 +34,8 @@
     "webpack": "^4.32.1",
     "webpack-cli": "^3.3.2",
     "webpack-dev-server": "^3.4.1"
+  },
+  "devDependencies": {
+    "test": "^0.6.0"
   }
 }
