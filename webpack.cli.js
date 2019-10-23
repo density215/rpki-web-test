@@ -47,7 +47,7 @@ module.exports = {
   ],
   output: {
     path: dir_build,
-    filename: "rpki-test-cli.js"
+    filename: "rpki-web-test-cli.js"
     //library: "libRpki",
     //libraryTarget: "commonjs2"
   },
