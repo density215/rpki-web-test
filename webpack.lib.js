@@ -45,8 +45,8 @@ module.exports = {
   ],
   output: {
     path: dir_build,
-    filename: "librpki.js",
-    library: "libRpki",
+    filename: "librpkitest.js",
+    library: "libRpkiTest",
     libraryTarget: "commonjs2"
   },
   //context: dir_app,
