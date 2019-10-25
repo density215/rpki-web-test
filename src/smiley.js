@@ -31,28 +31,31 @@ const smileSvg = [
   '<svg class="smile" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 12 14"><path d="M8.859 8.398q-0.289 0.945-1.078 1.523t-1.781 0.578-1.781-0.578-1.078-1.523q-0.062-0.195 0.031-0.379t0.297-0.246q0.195-0.062 0.379 0.031t0.246 0.297q0.195 0.625 0.723 1.012t1.184 0.387 1.184-0.387 0.723-1.012q0.062-0.203 0.25-0.297t0.383-0.031 0.289 0.246 0.031 0.379zM5 5q0 0.414-0.293 0.707t-0.707 0.293-0.707-0.293-0.293-0.707 0.293-0.707 0.707-0.293 0.707 0.293 0.293 0.707zM9 5q0 0.414-0.293 0.707t-0.707 0.293-0.707-0.293-0.293-0.707 0.293-0.707 0.707-0.293 0.707 0.293 0.293 0.707zM11 7q0-1.016-0.398-1.941t-1.066-1.594-1.594-1.066-1.941-0.398-1.941 0.398-1.594 1.066-1.066 1.594-0.398 1.941 0.398 1.941 1.066 1.594 1.594 1.066 1.941 0.398 1.941-0.398 1.594-1.066 1.066-1.594 0.398-1.941zM12 7q0 1.633-0.805 3.012t-2.184 2.184-3.012 0.805-3.012-0.805-2.184-2.184-0.805-3.012 0.805-3.012 2.184-2.184 3.012-0.805 3.012 0.805 2.184 2.184 0.805 3.012z"></path></svg>'
 ];
 
-const addConsoleLine = (line, textClass) => {
+const addConsoleLine = (line, textClass, id = null) => {
   if (consoleOnly) {
     process.stdout.write(`${line}`);
   } else {
     console.log(line);
     const termLine = document.createElement("p");
+    if (id) {
+      termLine.setAttribute("id", id);
+    }
     termLine.classList = textClass || "";
     termLine.textContent = line;
     consoleElm.appendChild(termLine);
   }
 };
 
-const addConsoleSpan = (span, passed) => {
+const addConsoleSpan = (span, passed, toId = null) => {
   if (consoleOnly) {
     process.stdout.write(`${span}\n`);
   } else {
     const consoleElm = document.querySelector("#console");
-    console.log(span);
     const termSpan = document.createElement("span");
     termSpan.classList.add((passed && "smile") || "frown");
     termSpan.textContent = span;
-    const lastLine = consoleElm.lastChild;
+    const lastLine =
+      (toId && document.querySelector(`#${toId}`)) || consoleElm.lastChild;
     lastLine.appendChild(termSpan);
   }
 };
@@ -67,6 +70,10 @@ const makeFace = faceType => {
 
 const finalMsg = rpkiResult => {
   //ex: AS3333 drops RPKI invalid BGP routes from prefix 193.0.20.0/23 as witnessed by your public IP 193.0.20.230
+  if (!rpkiResult["rpki-valid-passed"]) {
+    addConsoleLine("The RPKI test could not complete", "frown");
+    return;
+  }
 
   const msgVerb =
     (rpkiResult["rpki-valid-passed"] === true &&
@@ -103,14 +110,14 @@ export const handleReload = () => {
 // -> finished
 export const callBacks = {
   initialized: () => {
-    addConsoleLine("testing valid ROA...");
+    addConsoleLine("testing valid ROA...", null, "valid");
+    addConsoleLine("testing invalid ROA (5sec)...", null, "invalid");
   },
   validAwait: () => {
-    addConsoleSpan("[failed]!", false);
+    addConsoleSpan("[failed]!", false, "valid");
   },
   validReceived: () => {
-    addConsoleSpan("[passed]", true);
-    addConsoleLine("testing invalid ROA (5sec)...");
+    addConsoleSpan("[passed]", true, "valid");
   },
   invalidAwait: rpkiResult => {
     makeFace(mehSvg);
@@ -133,15 +140,15 @@ export const callBacks = {
   },
   invalidBlocked: rpkiResult => {
     if (rpkiResult["rpki-invalid-passed"] === false) {
-      addConsoleSpan("[passed]", true);
+      addConsoleSpan("[passed]", true, "invalid");
       makeFace(smileSvg);
     } else {
-      addConsoleSpan("[failed (error)]", false);
+      addConsoleSpan("[failed (error)]", false, "invalid");
       makeFace(mehSvg);
     }
   },
   invalidReceived: rpkiResult => {
-    addConsoleSpan("[failed]", false);
+    addConsoleSpan("[failed]", false, "invalid");
     makeFace(mehSvg);
   },
   enrichedAwait: finalMsg,
