@@ -1,5 +1,9 @@
 import { v4 } from "uuid";
 
+// only Edge needs this currently (10/2019)
+import allSettled from "promise.allsettled";
+allSettled.shim();
+
 const RPKI_VALID_URL = "rpki-valid-beacon.meerval.net";
 const RPKI_INVALID_URL = "rpki-invalid-beacon.meerval.net";
 const POST_RESULTS_URL = "https://rpki-browser.webmeasurements.net/results/";
