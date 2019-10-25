@@ -13,9 +13,16 @@ const startTest = () => {
     callBacks: callBacks,
     enrich: true,
     postResult: true
-  }).then(r => {
-    console.log(r);
-  });
+  }).then(
+    r => {
+      console.log("rpki result came in.");
+      console.log(r);
+    },
+    err => {
+      console.log("errored out");
+      console.log(err);
+    }
+  );
 };
 
 startTest();
