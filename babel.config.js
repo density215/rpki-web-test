@@ -22,7 +22,10 @@ module.exports = function(api) {
                     // "@babel/plugin-proposal-numeric-separator",
                     "@babel/plugin-proposal-throw-expressions"
                 ]
-            }
+            },
+          test: {
+            presets: ["@babel/preset-env"],
+          },
         },
         presets: [
             [
@@ -57,6 +60,10 @@ module.exports = function(api) {
             "@babel/plugin-proposal-export-namespace-from",
             // "@babel/plugin-proposal-numeric-separator",
             // "@babel/plugin-proposal-throw-expressions"
+          [
+            "@babel/plugin-transform-runtime",
+            { regenerator: true }
+          ]
         ]
     };
 };
