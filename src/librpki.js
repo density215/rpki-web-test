@@ -60,6 +60,10 @@ const timeout = async (promise, dur) => {
   });
 };
 
+export const exportForTest = () => {
+  return 'export works'
+}
+
 export const testRpkiInvalids = opts => {
   const {
     enrich = false,
