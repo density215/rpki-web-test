@@ -89,27 +89,6 @@ initialized ->
 [resultPostedAwait | resultPostedConfirmed] ->
 finished
 
-### Output
-
-the ```testRpkiInvalids()``` function returns a Promise that wraps a Result object:
-
-#### Result object
-
-  * rpki-valid-passed (**bool**) whether all rpki valid requests returned a non-error response
-  * rpki-invalid-passed (**bool**) whether all rpki invalid requests returned a non-error response
-  * events: (**array of Event objects**) all events of all stages appended
-  * lastStage: (**stageId**) the last stage before returning the result, should be "finished"
-  * lastErrorStage: (**stageId**) the stage where the last error occurred
-  * lastError: (**Error**) the last encountered error
-  * startDateTime: (**DateTime**) the datetime at the start of the initialization stage
-
-#### Event object
-
-  * stage (**string**) id of the stage
-  * error (**Error**) error if thrown
-  * successs (**bool**) stage finished without errors
-  * data (**object**) data returned by this stage, will always have a ```duration``` field, the time in ms from the start of the initialization stage.
-  
 ### Example Usage
 
 ```javascript
@@ -130,4 +109,191 @@ testRpkiInvalids({
       console.log(err);
     }
   );
+```
+
+### Output
+
+the ```testRpkiInvalids()``` function returns a Promise that wraps a Result object:
+
+#### Result object
+
+  * rpki-valid-passed (**bool**) whether all rpki valid requests returned a non-error response
+  * rpki-invalid-passed (**bool**) whether all rpki invalid requests returned a non-error response
+  * events: (**array of Event objects**) all events of all stages appended
+  * lastStage: (**stageId**) the last stage before returning the result, should be "finished"
+  * lastErrorStage: (**stageId**) the stage where the last error occurred
+  * lastError: (**Error**) the last encountered error
+  * startDateTime: (**DateTime**) the datetime at the start of the initialization stage
+
+#### Event object
+
+  * stage (**string**) id of the stage
+  * error (**Error**) error if thrown
+  * successs (**bool**) stage finished without errors
+  * data (**object**) data returned by this stage, will always have a ```duration``` field, the time in ms from the start of the initialization stage.
+
+### Sample output for a successful RPKI test
+
+```json
+{
+  "rpki-valid-passed": true,
+  "rpki-invalid-passed": false,
+  "lastStage": "finished",
+  "lastErrorStage": null,
+  "lastError": null,
+  "ip": "83.160.104.137",
+  "asn": ["3265"],
+  "pfx": "83.160.0.0/14",
+  "events": [
+    {
+      "stage": "initialized",
+      "error": null,
+      "success": true,
+      "data": {
+        "testUrls": [
+          {
+            "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
+            "addressFamily": 4
+          },
+          {
+            "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
+            "addressFamily": 4
+          }
+        ],
+        "startDateTime": "2019-10-31T17:06:28.153Z",
+        "originLocation": null,
+        "userAgent": "rpki-web-test-0.0.1",
+        "options": {
+          "enrich": true,
+          "invalidTimeout": 5000,
+          "postResult": true
+        }
+      }
+    },
+    {
+      "stage": "validReceived",
+      "error": null,
+      "data": {
+        "ip": "83.160.104.137",
+        "rpki-valid-passed": true,
+        "duration": 562,
+        "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
+        "addressFamily": 4
+      },
+      "success": true
+    },
+    {
+      "stage": "invalidBlocked",
+      "data": {
+        "rpki-invalid-passed": false,
+        "lastError": null,
+        "duration": 5026,
+        "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
+        "addressFamily": 4
+      },
+      "success": true,
+      "error": null
+    },
+    {
+      "stage": "enrichedReceived",
+      "data": {
+        "ip": "83.160.104.137",
+        "asns": ["3265"],
+        "prefix": "83.160.0.0/14",
+        "enrichUrl": "https://stat.ripe.net/data/network-info/data.json?resource=83.160.104.137",
+        "duration": 5420
+      },
+      "error": null,
+      "success": true
+    },
+    {
+      "stage": "resultPostedConfirmed",
+      "error": null,
+      "successs": true,
+      "data": {
+        "postUrl": "https://rpki-browser.webmeasurements.net/results/",
+        "payload": {
+          "events": [
+            {
+              "stage": "initialized",
+              "error": null,
+              "success": true,
+              "data": {
+                "testUrls": [
+                  {
+                    "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
+                    "addressFamily": 4
+                  },
+                  {
+                    "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
+                    "addressFamily": 4
+                  }
+                ],
+                "startDateTime": "2019-10-31T17:06:28.153Z",
+                "originLocation": null,
+                "userAgent": "rpki-web-test-0.0.1",
+                "options": {
+                  "enrich": true,
+                  "invalidTimeout": 5000,
+                  "postResult": true
+                }
+              }
+            },
+            {
+              "stage": "validReceived",
+              "error": null,
+              "data": {
+                "ip": "83.160.104.137",
+                "rpki-valid-passed": true,
+                "duration": 562,
+                "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
+                "addressFamily": 4
+              },
+              "success": true
+            },
+            {
+              "stage": "invalidBlocked",
+              "data": {
+                "rpki-invalid-passed": false,
+                "lastError": null,
+                "duration": 5026,
+                "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
+                "addressFamily": 4
+              },
+              "success": true,
+              "error": null
+            },
+            {
+              "stage": "enrichedReceived",
+              "data": {
+                "ip": "83.160.104.137",
+                "asns": ["3265"],
+                "prefix": "83.160.0.0/14",
+                "enrichUrl": "https://stat.ripe.net/data/network-info/data.json?resource=83.160.104.137",
+                "duration": 5420
+              },
+              "error": null,
+              "success": true
+            }
+          ],
+          "rpki-valid-passed": true,
+          "rpki-invalid-passed": false,
+          "lastStage": "enrichedReceived",
+          "lastErrorStage": null,
+          "lastError": null,
+          "ip": "83.160.104.137",
+          "asn": ["3265"],
+          "pfx": "83.160.0.0/14"
+        },
+        "duration": 6262
+      }
+    },
+    {
+      "stage": "finished",
+      "data": { "duration": 6262 },
+      "error": null,
+      "success": true
+    }
+  ]
+}
 ```
