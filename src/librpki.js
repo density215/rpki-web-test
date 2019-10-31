@@ -21,7 +21,7 @@ const userAgent =
   (typeof navigator !== "undefined" && navigator.userAgent) ||
   __RELEASE_STRING__;
 const originLocation =
-  (typeof window !== "undefined" && window.location.origin) || null;
+  (typeof window !== "undefined" && window.location.href) || null;
 
 let rpkiResult = { events: [] };
 
@@ -52,7 +52,7 @@ const timeout = async (promise, dur) => {
       const intermediaryRpkiResult = {
         "rpki-invalid-passed": false,
         stage: stage,
-        error: null
+        lastError: null
       };
       resolve(intermediaryRpkiResult);
     }, dur);
@@ -60,11 +60,8 @@ const timeout = async (promise, dur) => {
   });
 };
 
-export const exportForTest = () => {
-  return 'export works'
-}
-
 export const testRpkiInvalids = opts => {
+  opts = (opts && opts) || {};
   const {
     enrich = false,
     postResult = false,
@@ -106,11 +103,12 @@ export const testRpkiInvalids = opts => {
       "rpki-valid-passed": null, // true | false
       "rpki-invalid-passed": null, // true | false
       events: [],
-      stage: stage, // initialized -> (validAwait | validReceived)
+      lastStage: stage, // initialized -> (validAwait | validReceived)
       // -> (invalidAwait | invalidBlocked | invalidReceived) -> [enrichedReceived | enrichedAwait ]
       // -> (postedSent | postedAwait )
       // -> finished
-      error: null // string
+      lastErrorStage: null,
+      lastError: null // string
     };
 
     const event = {
@@ -152,7 +150,7 @@ export const testRpkiInvalids = opts => {
         rpkiResult = {
           ...rpkiResult,
           ...validR,
-          stage: stage,
+          lastStage: stage,
           error: null,
           events: [...rpkiResult.events, event],
           ip: validR.ip
@@ -168,7 +166,14 @@ export const testRpkiInvalids = opts => {
           success: false,
           data: { duration: Date.now() - startTs, testUrl: validTestUrl[0] }
         };
-        rpkiResult = { ...rpkiResult, events: [...rpkiResult.events, event] };
+        rpkiResult = {
+          ...rpkiResult,
+          "rpki-valid-passed": false,
+          lastStage: stage,
+          lastErrorStage: stage,
+          lastError: err,
+          events: [...rpkiResult.events, event]
+        };
         // frown
         // pass this on as a new promise to keep the chain intact.
         callBacks[stage] && callBacks[stage](rpkiResult);
@@ -181,6 +186,7 @@ export const testRpkiInvalids = opts => {
       invalidR => {
         // could be frown, meh or smile
         const stage = (invalidR.stage && invalidR.stage) || "invalidReceived";
+        delete invalidR.stage;
         const event = {
           stage,
           data: {
@@ -195,6 +201,7 @@ export const testRpkiInvalids = opts => {
         rpkiResult = {
           ...rpkiResult,
           ...invalidR,
+          lastStage: stage,
           events: [...rpkiResult.events, event]
         };
         callBacks[stage] && callBacks[stage](rpkiResult);
@@ -206,10 +213,21 @@ export const testRpkiInvalids = opts => {
         const event = {
           stage: stage,
           error: err,
-          success: false,
-          data: null
+          data: {
+            duration: Date.now() - startTs,
+            testUrl: invalidTestUrl[0],
+            addressFamily: 4
+          },
+          success: false
         };
-        rpkiResult = { ...rpkiResult, events: [...rpkiResult.events, event] };
+        rpkiResult = {
+          ...rpkiResult,
+          lastStage: stage,
+          lastErrorStage: stage,
+          lastError: err,
+          "rpki-invalid-passed": false,
+          events: [...rpkiResult.events, event]
+        };
         callBacks[stage] && callBacks[stage](rpkiResult);
         return Promise.reject(event);
       }
@@ -231,8 +249,7 @@ export const testRpkiInvalids = opts => {
           ip: r.ip,
           asn: r.asns,
           pfx: r.prefix,
-          stage,
-          error: null
+          lastStage: stage
         };
         callBacks[stage] && callBacks[stage](rpkiResult);
         return Promise.resolve(event);
@@ -249,6 +266,9 @@ export const testRpkiInvalids = opts => {
         };
         rpkiResult = {
           ...rpkiResult,
+          lastStage: stage,
+          lastErrorStage: stage,
+          lastError: err,
           events: [...rpkiResult.events, event]
         };
         callBacks[stage] && callBacks[stage](rpkiResult);
@@ -257,7 +277,7 @@ export const testRpkiInvalids = opts => {
     );
 
   const stagePostResult = () =>
-    fetchFn(`${POST_RESULTS_URL}`, {
+    fetch(`${POST_RESULTS_URL}`, {
       method: "POST",
       mode: "cors",
       headers: {
@@ -271,7 +291,7 @@ export const testRpkiInvalids = opts => {
       // by the next Promise.
     }).then(
       r => {
-        const stage = "resultPostedConfirmend";
+        const stage = "resultPostedConfirmed";
         const event = {
           stage: stage,
           error: null,
@@ -282,7 +302,11 @@ export const testRpkiInvalids = opts => {
             duration: Date.now() - startTs
           }
         };
-        rpkiResult = { ...rpkiResult, events: [...rpkiResult.events, event] };
+        rpkiResult = {
+          ...rpkiResult,
+          lastStage: stage,
+          events: [...rpkiResult.events, event]
+        };
         return Promise.resolve(event);
       },
       err => {
@@ -298,6 +322,9 @@ export const testRpkiInvalids = opts => {
         };
         rpkiResult = {
           ...rpkiResult,
+          lastStage: stage,
+          lastErrorStage: stage,
+          lastError: err,
           events: [...rpkiResult.events, event]
         };
         return Promise.reject(event);
@@ -305,33 +332,35 @@ export const testRpkiInvalids = opts => {
     );
 
   const stageFinishSuccessful = () => {
+    const stage = "finished";
     const event = {
-      stage: "finished",
-      data: { duration: Date.now() - startTs, rpkiResult: rpkiResult },
+      stage: stage,
+      data: { duration: Date.now() - startTs }, //, rpkiResult: rpkiResult }, this is kinda correct, but clutters the complete result with duplicated info.
       error: null,
       success: true
     };
     rpkiResult = {
       ...rpkiResult,
-      stage: "finished",
-      error: null,
+      lastStage: stage,
       events: [...rpkiResult.events, event]
     };
     return rpkiResult;
   };
 
   const stageFinishError = finalErr => {
+    const stage = "finished";
     const event = {
-      stage: "finished",
+      stage: stage,
       error: finalErr,
       data: null,
       success: false
     };
     rpkiResult = {
       ...rpkiResult,
-      stage: "finished",
+      // lastErrorStage: stage, // do not set this here, the error propagated out of the promise before this one.
+      lastStage: stage,
+      // lastError: finalErr,
       data: { duration: Date.now() - startTs },
-      error: finalErr,
       events: [...rpkiResult.events, event]
     };
     return rpkiResult;
@@ -362,6 +391,9 @@ const loadResource = async (fetchUrl, fetchFn = fetch) => {
 
   let resultData = await response.json().catch(err => {
     console.debug(err);
+    console.debug(response.json);
+
+    console.debug(response);
     return Promise.reject({
       status: response.status,
       detail: "The response is not in JSON format"
@@ -403,7 +435,8 @@ const loadResource = async (fetchUrl, fetchFn = fetch) => {
     const detailText =
       (error.errors && error.errors.length > 0 && error.errors[0].detail) ||
       error.detail ||
-      error.title;
+      error.title ||
+      response.statusText;
 
     const statusErr = { status: response.status, detail: detailText };
     return Promise.reject(statusErr);
@@ -412,21 +445,22 @@ const loadResource = async (fetchUrl, fetchFn = fetch) => {
   return resultData;
 };
 
-const loadIpPrefixAndAsn = (myIp, fetch = fetchFn) => {
+const loadIpPrefixAndAsn = (myIp, fetchFn = fetch) => {
   const fetchUrl = `${NETWORK_INFO_URL}${myIp}`;
   if (!myIp) {
     return Promise.reject({
-      error: "no ip address supplied."
+      detail: "no ip address supplied."
     });
   }
 
-  return loadResource(fetchUrl, fetch).then(
+  return loadResource(fetchUrl, fetchFn).then(
     r => {
       const myPrefix = (r.status === "ok" && r.data.prefix) || null;
       const myAsns = (r.status === "ok" && r.data.asns) || null;
       return { ip: myIp, asns: myAsns, prefix: myPrefix, enrichUrl: fetchUrl };
     },
     err => {
+      console.debug(err);
       console.error("could not retrieve ASN and/or prefix");
       err.detail = `could not retrieve ASN and/or prefix`;
       err.url = fetchUrl;
