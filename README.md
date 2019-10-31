@@ -1,5 +1,7 @@
 # rpki-web-test
-RPKI web test testing valid ROA and invalid ROA http endpoint
+RPKI web test testing valid ROA and invalid ROA http endpoint.
+
+This it the repo that backs [RPKI WEB TEST](https://www.ripe.net/s/rpki-test/)
 
 This small tool tests whether the host running it has an internet connection that has an upstream router that performs Route Origin Validation according (ROA) in accordance with the Routing Public Key Infrastructure (RPKI).
 You can read more about RPKI [here](https://rpki.readthedocs.io/en/latest/index.html).
@@ -13,7 +15,7 @@ it will conclude that somewhere along the route from the client to the server th
 ## What is in this repo?
 
 This tool consists of 
-  * a web-client (that you can use [here](https://www.ripe.net/s/rpki-web-test/), that you can also host yourself if you wish.
+  * a web-client (that you can use [here](https://www.ripe.net/s/rpki-test/)). You can also host it yourself if you wish.
   * a javascript library that can be run from both node.js and from webbrowsers.
   * a CLI tool. It is rather clunky now, since it has a complete nodejs environment embedded in it. given enough interest I can port this to a compiled language, so you can have a small binary. Also, I could add a traceroute engine to this CLI tool, so we could obtain more information about where along the route the invalid ROAs are dropped.
 
