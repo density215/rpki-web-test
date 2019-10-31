@@ -24,3 +24,4 @@ jobs:
         npm run cli
       env:
         CI: true
+        TARGET: node12-macos-x64
