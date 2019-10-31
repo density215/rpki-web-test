@@ -1,5 +1,5 @@
 import { testRpkiInvalids } from "./librpki";
-import fetch from "node-fetch";
+import fetch from "cross-fetch";
 import { callBacks } from "./smiley";
 
 testRpkiInvalids({ fetch, callBacks, enrich: true, postResult: false }).then(
