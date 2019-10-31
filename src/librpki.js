@@ -151,7 +151,6 @@ export const testRpkiInvalids = opts => {
           ...rpkiResult,
           ...validR,
           lastStage: stage,
-          error: null,
           events: [...rpkiResult.events, event],
           ip: validR.ip
         };
