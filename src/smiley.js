@@ -134,7 +134,7 @@ export const callBacks = {
         */
       makeFace(smileSvg);
     } else {
-      addConsoleSpan("[error (what does that mean?)]!", "failed");
+      addConsoleSpan("[error (what does that mean?)]!", "failed", "valid");
       makeFace(frownSvg);
     }
   },
