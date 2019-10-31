@@ -1,7 +1,7 @@
 # rpki-web-test
 RPKI web test testing valid ROA and invalid ROA http endpoint.
 
-This it the repo that backs [RPKI WEB TEST](https://www.ripe.net/s/rpki-test/)
+This is the repo that backs [RPKI WEB TEST](https://www.ripe.net/s/rpki-test/)
 
 This small tool tests whether the host running it has an internet connection that has an upstream router that performs Route Origin Validation according (ROA) in accordance with the Routing Public Key Infrastructure (RPKI).
 You can read more about RPKI [here](https://rpki.readthedocs.io/en/latest/index.html).
