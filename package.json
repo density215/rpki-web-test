@@ -11,7 +11,7 @@
     "test": "jest",
     "test:w": "jest --watch",
     "start": "./node_modules/.bin/webpack-dev-server --config ./webpack.smiley.js",
-    "cli": "webpack --config ./webpack.cli.js && pkg build/rpki-test-cli.js -o build/rpki-web-test-$TARGET -t $TARGET",
+    "cli": "webpack --config ./webpack.cli.js && pkg build/rpki-web-test-cli.js -o build/rpki-web-test-$TARGET -t $TARGET",
     "web": "webpack --config ./webpack.smiley.js",
     "lib": "webpack --config ./webpack.lib.js"
   },
