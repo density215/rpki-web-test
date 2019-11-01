@@ -110,12 +110,15 @@ the ```testRpkiInvalids``` function returns a Promise that resolved into a Resul
   * lastStage: (**stageId**) the last stage before returning the result, should be "finished"
   * lastErrorStage: (**stageId**) the stage where the last error occurred
   * lastError: (**Error**) the last encountered error
+  * pfx: (**string**) Prefix that the client IP address is routed from
+  * asn: (**string**) Autonomous System Number that the prefix is announced from
+  * ip: ((**string**) (public) IP address of the connection of the client as seen by the consulted webserver
 
 #### Event object
-  * stage (**string**) id of the stage
-  * error (**Error**) error if thrown
-  * successs (**bool**) stage finished without errors
-  * data (**object**) data returned by this stage
+  * stage (**string**) id of the final state of the stage
+  * error (**Error**) error if thrown, otherwise `null`
+  * successs (**bool**) if true stage finished without errors
+  * data (**object**) if any data returned by this stage, otherwise `null`
   
 The data object for each stage, will always have either a  `startDateTime` field that represents the start of a timer or a ```duration``` field, the time in ms from the start of that timer.
 
@@ -222,79 +225,6 @@ So, [initialized] in a stage with one possible final state, whereas [validAwait 
       "successs": true,
       "data": {
         "postUrl": "https://rpki-browser.webmeasurements.net/results/",
-        "payload": {
-          "events": [
-            {
-              "stage": "initialized",
-              "error": null,
-              "success": true,
-              "data": {
-                "testUrls": [
-                  {
-                    "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
-                    "addressFamily": 4
-                  },
-                  {
-                    "url": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
-                    "addressFamily": 4
-                  }
-                ],
-                "startDateTime": "2019-10-31T17:06:28.153Z",
-                "originLocation": null,
-                "userAgent": "rpki-web-test-0.0.1",
-                "options": {
-                  "enrich": true,
-                  "invalidTimeout": 5000,
-                  "postResult": true
-                }
-              }
-            },
-            {
-              "stage": "validReceived",
-              "error": null,
-              "data": {
-                "ip": "83.160.104.137",
-                "rpki-valid-passed": true,
-                "duration": 562,
-                "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-valid-beacon.meerval.net/valid.json",
-                "addressFamily": 4
-              },
-              "success": true
-            },
-            {
-              "stage": "invalidBlocked",
-              "data": {
-                "rpki-invalid-passed": false,
-                "lastError": null,
-                "duration": 5026,
-                "testUrl": "https://038c8427-6c0e-4ad3-b42c-152d1f8c7343.rpki-invalid-beacon.meerval.net/invalid.json",
-                "addressFamily": 4
-              },
-              "success": true,
-              "error": null
-            },
-            {
-              "stage": "enrichedReceived",
-              "data": {
-                "ip": "83.160.104.137",
-                "asns": ["3265"],
-                "prefix": "83.160.0.0/14",
-                "enrichUrl": "https://stat.ripe.net/data/network-info/data.json?resource=83.160.104.137",
-                "duration": 5420
-              },
-              "error": null,
-              "success": true
-            }
-          ],
-          "rpki-valid-passed": true,
-          "rpki-invalid-passed": false,
-          "lastStage": "enrichedReceived",
-          "lastErrorStage": null,
-          "lastError": null,
-          "ip": "83.160.104.137",
-          "asn": ["3265"],
-          "pfx": "83.160.0.0/14"
-        },
         "duration": 6262
       }
     },
