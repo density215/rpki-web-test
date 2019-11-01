@@ -1,6 +1,6 @@
 {
   "name": "rpki-web-test",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Lib, website and cli tool to test if your internet connection drops RPKI invalid ROAs somewhere along the way.",
   "repository": {
     "type": "git",
