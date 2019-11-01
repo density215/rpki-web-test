@@ -20,7 +20,7 @@ module.exports = {
     path.resolve(dir_app, "librpki")
   ],
   target: "async-node",
-  mode: "development",
+  mode: "production",
   module: {
     rules: [
       {
