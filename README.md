@@ -70,8 +70,8 @@ name | type | **default** | description
 ---- | ---- | ----------- | -----------
 enrich | bool | **false** | Sets whether the prefix and ASN belonging to the client IP address will be retrieved
 postResult | bool | **false** | Sets whether the result will be posted to a logging server
-invalidTimeout | Number | 5000 | Timeout in milliseconds after which the invalid ROA request is considered blocked.
-fetch | function | window.fetch | The fetch function to use for making web requests.
+invalidTimeout | Number | **5000** | Timeout in milliseconds after which the invalid ROA request is considered blocked.
+fetch | function | **window.fetch*** | The fetch used to make the HTTP requests.
 callBacks | object with `stageName`:`callBack Function` pairs | {} | At the end of each stage a callBack can be invoked (i.e., to render stuff to the clientscreen)
 
 ### Usage
@@ -101,7 +101,7 @@ testRpkiInvalids({
 ```
 
 ### Output
-the ```testRpkiInvalids()``` function returns a Promise that resolved into a Result object:
+the ```testRpkiInvalids``` function returns a Promise that resolved into a Result object:
 
 #### Result object
   * rpki-valid-passed (**bool**) whether all rpki valid requests returned a non-error response
