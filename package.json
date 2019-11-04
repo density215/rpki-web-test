@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/density215/rpki-web-test.git"
   },
-  "main": "index.js",
+  "main": "src/librpki.js",
   "scripts": {
     "test": "jest",
     "test:w": "jest --watch",
