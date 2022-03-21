@@ -21,7 +21,7 @@ var apiServer = process.env.API_SERVER || "atlas.ripe.net";
 // in the atlas-ui django app.
 // Also important for code splitting:
 // all split files ('0.bundle.js') will be hosted prefixed with this
-var publicPath = process.env.PUBLIC_PATH || "https://8080.ripe.net/";
+var publicPath = process.env.PUBLIC_PATH || "https://8080.nlnetnlabs.nl/";
 
 var entryDomElement = "#rpki";
 
@@ -75,10 +75,10 @@ module.exports = {
     //context: dir_app,
     devtool: "cheap-module-source-map",
     devServer: {
-        host: "8080.ripe.net",
+        host: "8080.nlnetlabs.nl",
         port: 8080,
         hot: true,
-        public: "8080.ripe.net",
+        public: "8080.nlnetlabs.nl",
         disableHostCheck: true,
         headers: {
             "Access-Control-Allow-Origin": "*"
