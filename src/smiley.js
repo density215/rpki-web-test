@@ -123,7 +123,14 @@ export const callBacks = {
     }
   },
   validAwait: () => {
-    addConsoleSpan("[failed]!", false, "valid");
+    if (rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 4) {
+      addConsoleSpan("[failed IPv4]", false, "valid");
+    } else if (rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 4) {
+      addConsoleSpan("[failed IPv6]", false, "valid");
+    }
+    else {
+      addConsoleSpan("[failed]", true, "valid");
+    }
   },
   validReceived: (rpkiResult) => {
     if (
