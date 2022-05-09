@@ -69,33 +69,45 @@ const makeFace = (faceType) => {
 };
 
 const finalMsg = (rpkiResult) => {
-  //ex: AS3333 drops RPKI invalid BGP routes from prefix 193.0.20.0/23 as witnessed by your public IP 193.0.20.230
+  //ex: AS3333 was not able to reach our RPKI invalid BGP route from prefix 193.0.20.0/23 as witnessed by your public IP 193.0.20.230
   // if (!rpkiResult["rpki-valid-passed"]) {
   //   addConsoleLine("The RPKI test could not complete", "frown");
   //   return;
   // }
   const ipAddress = rpkiResult.perAf[rpkiResult.perAf.length - 1];
-  const msgVerb =
-    ((rpkiResult["rpki-valid-passed-v4"] === true ||
-      rpkiResult["rpki-valid-passed-v6"] === true) &&
-      (rpkiResult["rpki-invalid-passed-v4"] === false ||
-        rpkiResult["rpki-invalid-passed-v6"] === false ||
-        rpkiResult["no-rpki-invalid-test"] === true) &&
-      "drop") ||
-    "accept";
-  const textClass = (msgVerb === "drop" && "smile") || "frown";
+  let msgVerb;
+
+  if (ipAddress.ip.includes(".")) {
+    if (rpkiResult["rpki-valid-passed-v4"] === true) {
+      msgVerb = "was not able to reach";
+    } else {
+      msgVerb = "reached";
+    }
+  } else if (rpkiResult["rpki-valid-passed-v6"] === true) {
+    msgVerb = "was not able to reach";
+  } else {
+    msgVerb = "reached";
+  }
+
+  // const msgVerb =
+  //   ((rpkiResult["rpki-valid-passed-v4"] === true ||
+  //     rpkiResult["rpki-valid-passed-v6"] === true) &&
+  //     (rpkiResult["rpki-invalid-passed-v4"] === false ||
+  //       rpkiResult["rpki-invalid-passed-v6"] === false ||
+  //       rpkiResult["no-rpki-invalid-test"] === true) &&
+  //     "was not able to reach") ||
+  //   "reached";
+  const textClass = (msgVerb === "was not able to reach" && "smile") || "frown";
   if (ipAddress.ip && !ipAddress.asn) {
     addConsoleLine(
-      `The IPv${ipAddress.af} network you're connected with ${msgVerb}s RPKI invalid BGP routes.`,
+      `The IPv${ipAddress.af} network you're connected with ${msgVerb}s our RPKI invalid BGP route.`,
       textClass
     );
   } else {
     addConsoleLine(
       `AS${(ipAddress.asn.length > 1 && "s") || ""}${ipAddress.asn.join(
         ","
-      )} ${msgVerb}${
-        (ipAddress.asn.length === 1 && "s") || ""
-      } RPKI invalid BGP routes from prefix ${
+      )} ${msgVerb} our RPKI invalid BGP route from prefix ${
         ipAddress.pfx
       } as witnessed by your public IP ${ipAddress.ip}`,
       textClass
@@ -127,36 +139,52 @@ export const callBacks = {
       addConsoleSpan("[failed IPv4]", false, "valid");
     } else if (rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 4) {
       addConsoleSpan("[failed IPv6]", false, "valid");
-    }
-    else {
+    } else {
       addConsoleSpan("[failed]", true, "valid");
     }
   },
   validReceived: (rpkiResult) => {
     if (
-      rpkiResult["rpki-valid-passed-v4"] == true &&
+      rpkiResult["rpki-valid-passed-v4"] === false &&
+      rpkiResult["rpki-valid-passed-v6"] === true
+    ) {
+      // addConsoleSpan(`[failed IPv4]`, false, "valid");
+      addConsoleSpan(`[passed IPv6]`, true, "valid");
+      makeFace(mehSvg);
+    } else if (
+      rpkiResult["rpki-valid-passed-v4"] === true &&
+      rpkiResult["rpki-valid-passed-v6"] === false
+    ) {
+      addConsoleSpan(`[passed IPv4]`, true, "valid");
+      // addConsoleSpan(`[failed IPv6]`, false, "valid");
+      makeFace(mehSvg);
+    } else if (
+      rpkiResult["rpki-valid-passed-v4"] === true &&
       rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 4
     ) {
       addConsoleSpan(`[passed ipv4]`, true, "valid");
       makeFace(smileSvg);
     } else if (
-      rpkiResult["rpki-valid-passed-v6"] == true &&
-      rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 6
-    ) {
-      addConsoleSpan(`[passed ipv6]`, true, "valid");
-      makeFace(smileSvg);
-    } else if (
-      !rpkiResult["rpki-valid-passed-v4"] == false &&
+      rpkiResult["rpki-valid-passed-v4"] === false &&
       rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 4
     ) {
       addConsoleSpan(`[failed IPv4]`, false, "valid");
-      makeFace(mehSvg);
+      makeFace(frownSvg);
     } else if (
-      !rpkiResult["rpki-valid-passed-v6"] == false &&
+      rpkiResult["rpki-valid-passed-v6"] === false &&
       rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 6
     ) {
       addConsoleSpan(`[failed IPv6]`, false, "valid");
-      makeFace(mehSvg);
+      makeFace(frownSvg);
+    } else if (
+      rpkiResult["rpki-valid-passed-v6"] === true &&
+      rpkiResult.perAf[rpkiResult.perAf.length - 1].af == 6
+    ) {
+      addConsoleSpan(`[passed IPv6]`, true, "valid");
+      makeFace(frownSvg);
+    } else {
+      console.log("burfg!");
+      console.log(rpkiResult["rpki-valid-passed-v4"]);
     }
   },
   invalidAwait: (rpkiResult) => {
@@ -183,8 +211,8 @@ export const callBacks = {
   },
   invalidBlocked: (rpkiResult) => {
     if (
-      rpkiResult["rpki-invalid-passed-v4"] === false ||
-      rpkiResult["rpki-invalid-passed-v6"] === false
+      rpkiResult["rpki-valid-passed-v4"] === true ||
+      rpkiResult["rpki-valid-passed-v6"] === true
     ) {
       addConsoleSpan("[passed]", true, "invalid");
       makeFace(smileSvg);

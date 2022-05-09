@@ -169,7 +169,7 @@ export const testRpkiInvalids = (opts) => {
           success: true,
         };
         let rpkiValidKey = `rpki-valid-passed-v${validTestUrl[2]}`;
-        rpkiResult[rpkiValidKey] = true;
+        rpkiResult[rpkiValidKey] = validR["rpki-valid-passed"];
         rpkiResult = {
           ...rpkiResult,
           ...validR,
@@ -189,7 +189,7 @@ export const testRpkiInvalids = (opts) => {
           data: { duration: Date.now() - startTs, testUrl: validTestUrl[0] },
         };
         let rpkiValidKey = `rpki-valid-passed-v${validTestUrl[2]}`;
-        rpkiResult[rpkiValidKey] = false;
+        rpkiResult[rpkiValidKey] = validR["rpki-valid-passed"];
         rpkiResult = {
           ...rpkiResult,
           lastStage: stage,
