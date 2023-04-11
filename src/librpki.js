@@ -4,8 +4,8 @@ import { v4 } from "uuid";
 import allSettled from "promise.allsettled";
 allSettled.shim();
 
-const RPKI_VALID_URL_4 = "rpkitest4.nlnetlabs.nl";
-const RPKI_VALID_URL_6 = "rpkitest6.nlnetlabs.nl";
+const RPKI_VALID_URL_4 = "rpkitest4.nlnetlabs.net";
+const RPKI_VALID_URL_6 = "rpkitest6.nlnetlabs.net";
 const RPKI_INVALID_URL = "";
 const POST_RESULTS_URL = "https://rpki-browser.webmeasurements.net/results/";
 const NETWORK_INFO_URL =
